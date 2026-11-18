@@ -12,5 +12,7 @@ services:
         sync: false
       - key: CDSE_CLIENT_SECRET
         sync: false
+      - key: GFW_ORIGIN         # deve essere uno dei "domains" della chiave GFW
+        value: "https://groveproof.netlify.app"
       - key: ALLOW_ORIGINS
         value: "*"

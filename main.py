@@ -37,7 +37,20 @@ def recipes_list():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "recipes": list_recipes()}
+    return {"ok": True, "recipes": list_recipes(),
+            "gfw_key_set": bool(os.getenv("GFW_API_KEY", "").strip()),
+            "cdse_set": bool(os.getenv("CDSE_CLIENT_ID") and os.getenv("CDSE_CLIENT_SECRET"))}
+
+class LeadReq(BaseModel):
+    email: str
+    company: Optional[str] = ""
+
+@app.post("/lead")
+def lead(req: LeadReq):
+    """Contatti dal modulo dei siti. Per ora finiscono nei Logs di Render (cerca '[lead]').
+    Il disco del piano free non è persistente: per conservarli serve un foglio/DB esterno."""
+    print("[lead] %s | %s" % (req.email, req.company or ""), flush=True)
+    return {"ok": True}
 
 @app.post("/analyze")
 def analyze_ep(req: AnalyzeReq):
@@ -60,8 +73,10 @@ def check(req: CheckReq):
                         "lon": r["lon"], "lat": r["lat"], "forest_ha_2020": None,
                         "disturb_ha_post2020": r["disturb_ha_post2020"], "verdict": r["verdict"]})
         except Exception as e:
+            print("[check] %s: %s" % (p.plot_id, e), flush=True)   # visibile nei Logs di Render
             out.append({"plot_id": p.plot_id, "origine": p.origine or "",
                         "lon": p.lng, "lat": p.lat, "forest_ha_2020": None,
-                        "disturb_ha_post2020": None, "verdict": "DATI_MANCANTI"})
+                        "disturb_ha_post2020": None, "verdict": "DATI_MANCANTI",
+                        "error": str(e)[:300]})
     return {"results": out,
             "disclaimer": "Evidenza a supporto. I casi A_RISCHIO richiedono revisione umana. Responsabilità DDS all'operatore."}
