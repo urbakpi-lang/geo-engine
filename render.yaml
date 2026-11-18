@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: geo-engine
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GFW_API_KEY        # per la ricetta 'deforestation'
+        sync: false
+      - key: CDSE_CLIENT_ID     # per la ricetta 'ndvi' (Copernicus, gratis)
+        sync: false
+      - key: CDSE_CLIENT_SECRET
+        sync: false
+      - key: ALLOW_ORIGINS
+        value: "*"
