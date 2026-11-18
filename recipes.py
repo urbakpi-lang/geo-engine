@@ -116,8 +116,7 @@ def eudr_v2(geometry: dict, params: dict):
            "loss_in_forest2020_ha": loss_f, "loss_by_year": prof.get("loss_by_year"),
            "drivers_ha": prof.get("drivers_ha"), "protected_ha": prof.get("protected_areas"),
            "indigenous_ha": prof.get("indigenous_lands"), "datasets": prof.get("datasets"),
-           "provider_errors": prof.get("errors"),
-           "debug": {"main": prof.get("debug_main"), "country": prof.get("debug_country")}}
+           "provider_errors": prof.get("errors")}
 
     if any(i["level"] == "errore" for i in issues):
         return {**out, "verdict": "DATI_MANCANTI", "confidence": "bassa", "issues": issues,

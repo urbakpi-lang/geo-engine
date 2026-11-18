@@ -87,99 +87,92 @@ def tree_cover_loss_since(polygon_geom: dict, cutoff_year: int = 2021) -> float:
 
 
 # ---------- v2: profilo completo della particella ----------
-def _pq(sql, geom):
+def _jrc(sql, geom):
+    """Dataset JRC 2020: contiene SOLO i pixel che erano foresta nel 2020.
+    Al suo interno l'anno di perdita Hansen è codificato 1..24 (= 2001..2024)."""
     return query(sql, geom, PROFILE_DATASET, PROFILE_VERSION)
 
 
 def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
     """
-    Raccoglie in poche query tutto ciò che serve al verdetto EUDR.
-    Ogni parte è indipendente: se una fallisce, le altre restano e l'errore è riportato in 'errors'.
+    Raccoglie tutto ciò che serve al verdetto EUDR (query verificate sui dati reali il 18/11/2026).
+    Ogni parte è indipendente: se una fallisce, le altre restano e l'errore finisce in 'errors'.
     """
-    p = {"land_ha": None, "forest2020_ha": None, "loss_post2020_ha": None,
-         "loss_in_forest2020_ha": None, "loss_by_year": {}, "country_iso3": None,
-         "drivers_ha": {}, "protected_areas": None, "indigenous_lands": None,
-         "datasets": ["UMD Hansen tree cover loss %s" % GFW_VERSION], "errors": []}
+    from concurrent.futures import ThreadPoolExecutor
+    import country_risk
+    g = polygon_geom
+    jobs = {
+        "land": lambda: query("SELECT SUM(area__ha) FROM results", g),
+        "loss_years": lambda: query("SELECT umd_tree_cover_loss__year, SUM(area__ha) FROM results "
+                                    "GROUP BY umd_tree_cover_loss__year", g),
+        "forest": lambda: _jrc("SELECT SUM(area__ha) FROM results", g),
+        "loss_forest": lambda: _jrc("SELECT SUM(area__ha) FROM results WHERE umd_tree_cover_loss__year >= %d"
+                                    % (cutoff_year - 2000), g),
+        "country": lambda: query("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
+                                 "GROUP BY gadm_administrative_boundaries__adm0", g),
+        "drivers": lambda: query("SELECT wri_google_tree_cover_loss_drivers__category, SUM(area__ha) FROM results "
+                                 "WHERE umd_tree_cover_loss__year >= %d "
+                                 "GROUP BY wri_google_tree_cover_loss_drivers__category" % cutoff_year, g),
+        "wdpa": lambda: query("SELECT wdpa_protected_areas__iucn_cat, SUM(area__ha) FROM results "
+                              "GROUP BY wdpa_protected_areas__iucn_cat", g),
+        "indigenous": lambda: query("SELECT is__landmark_ip_lc_and_indicative_poly, SUM(area__ha) FROM results "
+                                    "GROUP BY is__landmark_ip_lc_and_indicative_poly", g),
+    }
+    res, errors = {}, []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futs = {k: ex.submit(fn) for k, fn in jobs.items()}
+        for k, f in futs.items():
+            try:
+                res[k] = f.result()
+            except Exception as e:
+                errors.append("%s: %s" % (k, str(e)[:160]))
 
-    # 1) superficie, foresta 2020 (JRC), perdita per anno — una sola query raggruppata
-    try:
-        rows = _pq("SELECT is__jrc_global_forest_cover, umd_tree_cover_loss__year, SUM(area__ha) "
-                   "FROM results GROUP BY is__jrc_global_forest_cover, umd_tree_cover_loss__year",
-                   polygon_geom)
-        p["debug_main"] = rows[:3]
-        col = _sum_col(rows)
-        land = forest = loss = loss_f = 0.0
-        by_year = {}
+    total = lambda rows: sum(_num(r.get(_sum_col(rows))) for r in rows) if rows else 0.0
+    p = {"land_ha": None, "forest2020_ha": None, "loss_post2020_ha": None, "loss_in_forest2020_ha": None,
+         "loss_by_year": {}, "country_iso3": None, "drivers_ha": {}, "protected_areas": None,
+         "indigenous_lands": None, "errors": errors,
+         "datasets": ["UMD/Hansen tree cover loss %s" % GFW_VERSION]}
+    if "land" in res:
+        p["land_ha"] = round(total(res["land"]), 3)
+    if "loss_years" in res:
+        rows = res["loss_years"]; col = _sum_col(rows); loss = 0.0
         for r in rows:
-            a = _num(r.get(col))
-            is_f = r.get("is__jrc_global_forest_cover") in (True, 1, "true", "True")
-            y = r.get("umd_tree_cover_loss__year")
-            y = int(y) if y not in (None, "", 0, "0") else None
-            land += a
-            if is_f:
-                forest += a
-            if y and y >= cutoff_year:
-                loss += a
-                by_year[y] = round(by_year.get(y, 0) + a, 3)
-                if is_f:
-                    loss_f += a
-        p.update(land_ha=round(land, 3), forest2020_ha=round(forest, 3), loss_post2020_ha=round(loss, 3),
-                 loss_in_forest2020_ha=round(loss_f, 3), loss_by_year=by_year)
-        p["datasets"].append("JRC Global Forest Cover 2020")
-    except Exception as e:
-        p["errors"].append("baseline 2020: %s" % e)
-        try:
-            p["loss_post2020_ha"] = round(tree_cover_loss_since(polygon_geom, cutoff_year), 3)
-        except Exception as e2:
-            p["errors"].append("perdita: %s" % e2)
-
-    # 2) paese reale del punto (per il controllo del paese dichiarato)
-    try:
-        rows = _pq("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
-                   "GROUP BY gadm_administrative_boundaries__adm0", polygon_geom)
-        p["debug_country"] = rows[:3]
-        col = _sum_col(rows)
-        rows = [r for r in rows if r.get("gadm_administrative_boundaries__adm0")]
+            try:
+                y = int(r.get("umd_tree_cover_loss__year") or 0)
+            except (TypeError, ValueError):
+                continue
+            if y >= cutoff_year:
+                a = _num(r.get(col)); loss += a
+                p["loss_by_year"][y] = round(a, 3)
+        p["loss_post2020_ha"] = round(loss, 3)
+    if "forest" in res:
+        p["forest2020_ha"] = round(total(res["forest"]), 3)
+        p["datasets"].append("JRC Global Forest Cover 2020 (%s)" % PROFILE_VERSION)
+    if "loss_forest" in res:
+        p["loss_in_forest2020_ha"] = round(total(res["loss_forest"]), 3)
+    if res.get("country"):
+        rows = res["country"]; col = _sum_col(rows)
+        best = max(rows, key=lambda r: _num(r.get(col)))
+        p["country_iso3"] = country_risk.iso3_from_numeric(best.get("gadm_administrative_boundaries__adm0"))
+    if "drivers" in res:
+        rows = res["drivers"]; col = _sum_col(rows)
+        for r in rows:
+            try:
+                c = int(r.get("wri_google_tree_cover_loss_drivers__category"))
+            except (TypeError, ValueError):
+                continue
+            name = DRIVERS.get(c, "altro")
+            p["drivers_ha"][name] = round(p["drivers_ha"].get(name, 0) + _num(r.get(col)), 3)
         if rows:
-            best = max(rows, key=lambda r: _num(r.get(col)))
-            v = str(best["gadm_administrative_boundaries__adm0"]).strip().upper()
-            if len(v) == 3 and v.isalpha():
-                p["country_iso3"] = v
-    except Exception as e:
-        p["errors"].append("paese: %s" % e)
-
-    # 3) causa della perdita — solo se c'è perdita
-    if (p["loss_post2020_ha"] or 0) > 0:
-        try:
-            rows = _pq("SELECT wri_google_tree_cover_loss_drivers__category, SUM(area__ha) FROM results "
-                         "WHERE umd_tree_cover_loss__year >= %d "
-                         "GROUP BY wri_google_tree_cover_loss_drivers__category" % cutoff_year, polygon_geom)
-            col = _sum_col(rows)
-            for r in rows:
-                c = r.get("wri_google_tree_cover_loss_drivers__category")
-                try:
-                    c = int(c)
-                except (TypeError, ValueError):
-                    continue
-                p["drivers_ha"][DRIVERS.get(c, "altro")] = round(
-                    p["drivers_ha"].get(DRIVERS.get(c, "altro"), 0) + _num(r.get(col)), 3)
             p["datasets"].append("WRI/Google DeepMind drivers of tree cover loss")
-        except Exception as e:
-            p["errors"].append("cause: %s" % e)
 
-    # 4) aree protette e terre indigene (segnali di legalità, facoltativi)
-    for key, field in (("protected_areas", "wdpa_protected_areas__iucn_cat"),
-                       ("indigenous_lands", "is__landmark_ip_lc_and_indicative_poly")):
-        try:
-            rows = _pq("SELECT %s, SUM(area__ha) FROM results GROUP BY %s" % (field, field), polygon_geom)
-            col = _sum_col(rows)
-            def _inside(v):
-                if v in (True, 1, "true", "True"):
-                    return True
-                return isinstance(v, str) and v.strip() not in ("", "0", "false", "False", "None")
-            inside = sum(_num(r.get(col)) for r in rows if _inside(r.get(field)))
-            p[key] = round(inside, 3)
-        except Exception as e:
-            p["errors"].append("%s: %s" % (key, str(e)[:120]))
-
+    def _inside(v):
+        if v in (None, "", 0, "0", False, "false", "False", "None"):
+            return False
+        return True
+    for key, src, field in (("protected_areas", "wdpa", "wdpa_protected_areas__iucn_cat"),
+                            ("indigenous_lands", "indigenous", "is__landmark_ip_lc_and_indicative_poly")):
+        if key and src in res:
+            rows = res[src]; col = _sum_col(rows)
+            p[key] = round(sum(_num(r.get(col)) for r in rows if _inside(r.get(field))), 3)
     return p
