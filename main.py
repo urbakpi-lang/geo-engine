@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from messages import t
 import recipes                      # registra le ricette (import con effetto collaterale)
 from engine import analyze, list_recipes
 
@@ -40,6 +41,7 @@ class Plot(BaseModel):
 class CheckReq(BaseModel):
     plots: List[Plot]
     version: Optional[str] = "v2"
+    lang: Optional[str] = "it"
 
 MAX_PLOTS = int(os.getenv("MAX_PLOTS", "200"))
 
@@ -80,9 +82,9 @@ def _check_v1(p: Plot):
             "forest_ha_2020": None, "disturb_ha_post2020": r["disturb_ha_post2020"], "verdict": r["verdict"]}
 
 
-def _check_v2(p: Plot):
+def _check_v2(p: Plot, lang="it"):
     geom = p.geometry if p.geometry else {"type": "Point", "coordinates": [p.lng, p.lat]}
-    r = analyze("eudr_v2", geom, {"area_ha": p.area_ha, "country": p.origine})
+    r = analyze("eudr_v2", geom, {"area_ha": p.area_ha, "country": p.origine, "lang": lang})
     return {"plot_id": p.plot_id, "origine": p.origine or "",
             "lon": r.get("lon"), "lat": r.get("lat"),
             "forest_ha_2020": r.get("forest2020_ha"), **{k: v for k, v in r.items() if k not in ("lon", "lat")}}
@@ -99,12 +101,12 @@ def check(req: CheckReq):
         try:
             if p.geometry is None and (p.lat is None or p.lng is None) and fn is _check_v1:
                 raise ValueError("coordinate mancanti")
-            return fn(p)
+            return fn(p) if fn is _check_v1 else fn(p, req.lang or "it")
         except Exception as e:
             print("[check] %s: %s" % (p.plot_id, e), flush=True)   # visibile nei Logs di Render
             return {"plot_id": p.plot_id, "origine": p.origine or "", "lon": p.lng, "lat": p.lat,
                     "forest_ha_2020": None, "disturb_ha_post2020": None, "verdict": "DATI_MANCANTI",
-                    "confidence": "bassa", "reasons": ["Errore durante la verifica: riprova più tardi."],
+                    "confidence": "bassa", "reasons": [t("check_error", req.lang or "it")],
                     "error": str(e)[:300]}
 
     with ThreadPoolExecutor(max_workers=6) as ex:

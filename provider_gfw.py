@@ -13,7 +13,8 @@ Dataset usati (tutti su data-api.globalforestwatch.org):
 - is__jrc_global_forest_cover    mappa forestale 2020 di riferimento UE (JRC GFC2020)
 - gadm_administrative_boundaries confini dei paesi (per il controllo del paese dichiarato)
 - wri_google_tree_cover_loss_drivers  causa della perdita (WRI / Google DeepMind)
-- wdpa_protected_areas, landmark_*    aree protette e terre indigene (segnali di legalità)
+- wdpa_protected_areas__iucn_cat, is__landmark_ip_lc_and_indicative_poly  aree protette e terre indigene
+Tutti interrogati sul dataset jrc_global_forest_cover/v2020.3 (layer verificati il 18/11/2026).
 """
 import os
 import requests
@@ -23,6 +24,9 @@ GFW_ORIGIN = os.getenv("GFW_ORIGIN", "https://groveproof.netlify.app").strip()
 GFW_DATASET = os.getenv("GFW_DATASET", "umd_tree_cover_loss")
 GFW_VERSION = os.getenv("GFW_VERSION", "v1.13")
 BASE = "https://data-api.globalforestwatch.org"
+# Dataset che contiene TUTTI i layer usati (JRC 2020, perdita per anno, cause, WDPA, LandMark, GADM)
+PROFILE_DATASET = os.getenv("GFW_PROFILE_DATASET", "jrc_global_forest_cover")
+PROFILE_VERSION = os.getenv("GFW_PROFILE_VERSION", "v2020.3")
 
 DRIVERS = {
     1: "agricoltura permanente", 2: "estrazione mineraria/energia", 3: "agricoltura itinerante",
@@ -83,6 +87,10 @@ def tree_cover_loss_since(polygon_geom: dict, cutoff_year: int = 2021) -> float:
 
 
 # ---------- v2: profilo completo della particella ----------
+def _pq(sql, geom):
+    return query(sql, geom, PROFILE_DATASET, PROFILE_VERSION)
+
+
 def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
     """
     Raccoglie in poche query tutto ciò che serve al verdetto EUDR.
@@ -95,9 +103,10 @@ def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
 
     # 1) superficie, foresta 2020 (JRC), perdita per anno — una sola query raggruppata
     try:
-        rows = query("SELECT is__jrc_global_forest_cover, umd_tree_cover_loss__year, SUM(area__ha) "
-                     "FROM results GROUP BY is__jrc_global_forest_cover, umd_tree_cover_loss__year",
-                     polygon_geom)
+        rows = _pq("SELECT is__jrc_global_forest_cover, umd_tree_cover_loss__year, SUM(area__ha) "
+                   "FROM results GROUP BY is__jrc_global_forest_cover, umd_tree_cover_loss__year",
+                   polygon_geom)
+        p["debug_main"] = rows[:3]
         col = _sum_col(rows)
         land = forest = loss = loss_f = 0.0
         by_year = {}
@@ -126,20 +135,23 @@ def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
 
     # 2) paese reale del punto (per il controllo del paese dichiarato)
     try:
-        rows = query("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
-                     "GROUP BY gadm_administrative_boundaries__adm0", polygon_geom)
+        rows = _pq("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
+                   "GROUP BY gadm_administrative_boundaries__adm0", polygon_geom)
+        p["debug_country"] = rows[:3]
         col = _sum_col(rows)
         rows = [r for r in rows if r.get("gadm_administrative_boundaries__adm0")]
         if rows:
             best = max(rows, key=lambda r: _num(r.get(col)))
-            p["country_iso3"] = str(best["gadm_administrative_boundaries__adm0"]).upper()
+            v = str(best["gadm_administrative_boundaries__adm0"]).strip().upper()
+            if len(v) == 3 and v.isalpha():
+                p["country_iso3"] = v
     except Exception as e:
         p["errors"].append("paese: %s" % e)
 
     # 3) causa della perdita — solo se c'è perdita
     if (p["loss_post2020_ha"] or 0) > 0:
         try:
-            rows = query("SELECT wri_google_tree_cover_loss_drivers__category, SUM(area__ha) FROM results "
+            rows = _pq("SELECT wri_google_tree_cover_loss_drivers__category, SUM(area__ha) FROM results "
                          "WHERE umd_tree_cover_loss__year >= %d "
                          "GROUP BY wri_google_tree_cover_loss_drivers__category" % cutoff_year, polygon_geom)
             col = _sum_col(rows)
@@ -156,12 +168,16 @@ def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
             p["errors"].append("cause: %s" % e)
 
     # 4) aree protette e terre indigene (segnali di legalità, facoltativi)
-    for key, field in (("protected_areas", "is__wdpa_protected_areas"),
-                       ("indigenous_lands", "is__landmark_indigenous_and_community_lands")):
+    for key, field in (("protected_areas", "wdpa_protected_areas__iucn_cat"),
+                       ("indigenous_lands", "is__landmark_ip_lc_and_indicative_poly")):
         try:
-            rows = query("SELECT %s, SUM(area__ha) FROM results GROUP BY %s" % (field, field), polygon_geom)
+            rows = _pq("SELECT %s, SUM(area__ha) FROM results GROUP BY %s" % (field, field), polygon_geom)
             col = _sum_col(rows)
-            inside = sum(_num(r.get(col)) for r in rows if r.get(field) in (True, 1, "true", "True"))
+            def _inside(v):
+                if v in (True, 1, "true", "True"):
+                    return True
+                return isinstance(v, str) and v.strip() not in ("", "0", "false", "False", "None")
+            inside = sum(_num(r.get(col)) for r in rows if _inside(r.get(field)))
             p[key] = round(inside, 3)
         except Exception as e:
             p["errors"].append("%s: %s" % (key, str(e)[:120]))

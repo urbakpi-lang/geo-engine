@@ -22,6 +22,7 @@ def deforestation(geometry: dict, params: dict):
 
 # ---------- Ricetta 1b: EUDR v2 (GroveProof) ----------
 import country_risk, quality
+from messages import t, driver_name
 from datetime import date
 
 THRESH_HA = 0.1          # sotto questa soglia la perdita è rumore del dato a 30 m
@@ -35,12 +36,14 @@ def eudr_v2(geometry: dict, params: dict):
     """
     Verifica EUDR completa di una particella.
     geometry: Point o Polygon/MultiPolygon GeoJSON.
-    params: {area_ha?, country?, cutoff_year=2021}
+    params: {area_ha?, country?, cutoff_year=2021, lang='it'|'en'|'de'}
     Ritorna verdetto, confidenza (alta/media/bassa), motivazioni e dati di dettaglio.
     """
     declared_ha = params.get("area_ha")
     declared_country = params.get("country")
     cutoff = params.get("cutoff_year", 2021)
+    lang = params.get("lang") or "it"
+    W = lambda code, level, **kw: {"code": code, "level": level, "msg": t(code, lang, **kw)}
     reasons, issues = [], []
 
     # 1) qualità dei dati
@@ -54,16 +57,15 @@ def eudr_v2(geometry: dict, params: dict):
             lon, lat = float("nan"), float("nan")
     else:
         lon, lat = (list(geometry.get("coordinates") or []) + [None, None])[:2]
-    issues += quality.check_point(lat, lon, check_precision=not is_polygon)
+    issues += quality.check_point(lat, lon, check_precision=not is_polygon, lang=lang)
     if any(i["level"] == "errore" for i in issues):
         lon = lon if isinstance(lon, (int, float)) else 0.0
         lat = lat if isinstance(lat, (int, float)) else 0.0
-    g_issues, poly_ha = quality.check_geometry(geometry if is_polygon else None, declared_ha)
+    g_issues, poly_ha = quality.check_geometry(geometry if is_polygon else None, declared_ha, lang)
     issues += g_issues
     iso_declared = country_risk.iso3_of(declared_country)
     if declared_country and not iso_declared:
-        issues.append({"code": "paese_sconosciuto", "level": "avviso",
-                       "msg": "Paese «%s» non riconosciuto: scrivilo in inglese o con il codice ISO." % declared_country})
+        issues.append(W("paese_sconosciuto", "avviso", name=declared_country))
 
     import math
     _r = lambda v: (round(float(v), 6) if isinstance(v, (int, float)) and not math.isnan(v) else None)
@@ -95,37 +97,34 @@ def eudr_v2(geometry: dict, params: dict):
 
     # 3) controlli che dipendono dal satellite
     if land is not None and land <= 0.001:
-        issues.append({"code": "fuori_terra", "level": "errore",
-                       "msg": "Il punto cade in mare o fuori dai dati: controlla latitudine e longitudine."})
+        issues.append(W("fuori_terra", "errore"))
     real = prof.get("country_iso3")
     if real:
         base["country_detected"] = real
         if iso_declared and real != iso_declared:
-            issues.append({"code": "paese_diverso", "level": "avviso",
-                           "msg": "Paese dichiarato %s, ma le coordinate cadono in %s." % (iso_declared, real)})
+            issues.append(W("paese_diverso", "avviso", decl=iso_declared, real=real))
         if not iso_declared:
             base["country_risk"] = country_risk.risk_of(real)
     if base.get("country_risk") == "alto":
-        reasons.append("Paese ad alto rischio secondo la classificazione UE: serve due diligence rafforzata.")
+        reasons.append(t("alto_rischio", lang))
     if prof.get("protected_areas"):
-        issues.append({"code": "area_protetta", "level": "avviso",
-                       "msg": "%.1f ha della particella ricadono in un'area protetta: verifica la legalità." % prof["protected_areas"]})
+        issues.append(W("area_protetta", "avviso", ha=prof["protected_areas"]))
     if prof.get("indigenous_lands"):
-        issues.append({"code": "terre_indigene", "level": "avviso",
-                       "msg": "%.1f ha ricadono in terre indigene o comunitarie: verifica i diritti sulla terra." % prof["indigenous_lands"]})
+        issues.append(W("terre_indigene", "avviso", ha=prof["indigenous_lands"]))
 
     out = {**base, "forest2020_ha": forest, "disturb_ha_post2020": loss,
            "loss_in_forest2020_ha": loss_f, "loss_by_year": prof.get("loss_by_year"),
            "drivers_ha": prof.get("drivers_ha"), "protected_ha": prof.get("protected_areas"),
            "indigenous_ha": prof.get("indigenous_lands"), "datasets": prof.get("datasets"),
-           "provider_errors": prof.get("errors")}
+           "provider_errors": prof.get("errors"),
+           "debug": {"main": prof.get("debug_main"), "country": prof.get("debug_country")}}
 
     if any(i["level"] == "errore" for i in issues):
         return {**out, "verdict": "DATI_MANCANTI", "confidence": "bassa", "issues": issues,
                 "reasons": [i["msg"] for i in issues if i["level"] == "errore"]}
     if loss is None:
         return {**out, "verdict": "DATI_MANCANTI", "confidence": "bassa", "issues": issues,
-                "reasons": ["Dati satellitari non disponibili in questo momento: riprova più tardi."]}
+                "reasons": [t("sat_unavailable", lang)]}
 
     # 4) verdetto
     size = land or poly_ha or declared_ha or 1.0
@@ -136,34 +135,32 @@ def eudr_v2(geometry: dict, params: dict):
     if forest is not None:                        # baseline JRC disponibile
         if forest <= thresh and loss <= thresh:
             verdict, conf = "OK_NO_FOREST_2020", "alta"
-            reasons.append("Nel 2020 la particella non era foresta (mappa JRC): non può esserci deforestazione dopo il 2020.")
+            reasons.append(t("no_forest_2020", lang))
         elif loss_f > thresh:
             verdict, conf = "A_RISCHIO", "alta"
-            reasons.append("%.2f ha di foresta 2020 persi dopo il 2020." % loss_f)
+            reasons.append(t("loss_forest", lang, ha=loss_f))
             if main_driver:
-                reasons.append("Causa prevalente stimata: %s." % main_driver)
+                reasons.append(t("driver", lang, name=driver_name(main_driver, lang)))
             if main_driver in ("incendio", "disturbi naturali"):
                 conf = "media"
-                reasons.append("Perdita forse naturale: serve revisione con immagine ad alta risoluzione.")
+                reasons.append(t("natural_review", lang))
         elif loss > thresh:
             verdict, conf = "OK", "media"
-            reasons.append("%.2f ha di perdita arborea dopo il 2020, ma fuori dalla foresta 2020 "
-                           "(per esempio potatura degli alberi d'ombra)." % loss)
+            reasons.append(t("loss_outside", lang, ha=loss))
         else:
             verdict, conf = "OK", "alta"
-            reasons.append("Nessuna perdita di foresta dopo il 31/12/2020 (Hansen + JRC 2020).")
+            reasons.append(t("clean", lang))
     else:                                         # solo Hansen (ripiego)
         verdict = "A_RISCHIO" if loss > thresh else "OK"
         conf = "media"
-        reasons.append(("%.2f ha di perdita arborea dopo il 2020." % loss) if loss > thresh
-                       else "Nessuna perdita arborea dopo il 2020 (solo Hansen: baseline 2020 non disponibile).")
+        reasons.append(t("v1_loss", lang, ha=loss) if loss > thresh else t("v1_clean", lang))
 
     # 5) la confidenza scende con gli avvisi
     warn = [i for i in issues if i["level"] == "avviso"]
     if any(i["code"] in ("serve_poligono", "paese_diverso", "area_protetta", "terre_indigene") for i in warn):
         conf = {"alta": "media", "media": "bassa", "bassa": "bassa"}[conf]
     if not is_polygon:
-        reasons.append("Verificato un'area attorno al punto: con il poligono reale l'esito è più affidabile.")
+        reasons.append(t("point_only", lang))
     return {**out, "verdict": verdict, "confidence": conf, "issues": issues, "reasons": reasons}
 
 
