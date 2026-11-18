@@ -27,6 +27,10 @@ BASE = "https://data-api.globalforestwatch.org"
 # Dataset che contiene TUTTI i layer usati (JRC 2020, perdita per anno, cause, WDPA, LandMark, GADM)
 PROFILE_DATASET = os.getenv("GFW_PROFILE_DATASET", "jrc_global_forest_cover")
 PROFILE_VERSION = os.getenv("GFW_PROFILE_VERSION", "v2020.3")
+# Base che copre TUTTA la terraferma (0 in mare): superficie, paese, aree protette, terre indigene.
+# NB: umd_tree_cover_loss contiene solo i pixel con una perdita dal 2001, quindi non va bene come base.
+LAND_DATASET = os.getenv("GFW_LAND_DATASET", "umd_land_cover")
+LAND_VERSION = os.getenv("GFW_LAND_VERSION", "v2020")
 
 DRIVERS = {
     1: "agricoltura permanente", 2: "estrazione mineraria/energia", 3: "agricoltura itinerante",
@@ -101,22 +105,23 @@ def plot_profile(polygon_geom: dict, cutoff_year: int = 2021) -> dict:
     from concurrent.futures import ThreadPoolExecutor
     import country_risk
     g = polygon_geom
+    land = lambda sql: query(sql, g, LAND_DATASET, LAND_VERSION)
     jobs = {
-        "land": lambda: query("SELECT SUM(area__ha) FROM results", g),
+        "land": lambda: land("SELECT SUM(area__ha) FROM results"),
         "loss_years": lambda: query("SELECT umd_tree_cover_loss__year, SUM(area__ha) FROM results "
                                     "GROUP BY umd_tree_cover_loss__year", g),
         "forest": lambda: _jrc("SELECT SUM(area__ha) FROM results", g),
         "loss_forest": lambda: _jrc("SELECT SUM(area__ha) FROM results WHERE umd_tree_cover_loss__year >= %d"
                                     % (cutoff_year - 2000), g),
-        "country": lambda: query("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
-                                 "GROUP BY gadm_administrative_boundaries__adm0", g),
+        "country": lambda: land("SELECT gadm_administrative_boundaries__adm0, SUM(area__ha) FROM results "
+                                "GROUP BY gadm_administrative_boundaries__adm0"),
         "drivers": lambda: query("SELECT wri_google_tree_cover_loss_drivers__category, SUM(area__ha) FROM results "
                                  "WHERE umd_tree_cover_loss__year >= %d "
                                  "GROUP BY wri_google_tree_cover_loss_drivers__category" % cutoff_year, g),
-        "wdpa": lambda: query("SELECT wdpa_protected_areas__iucn_cat, SUM(area__ha) FROM results "
-                              "GROUP BY wdpa_protected_areas__iucn_cat", g),
-        "indigenous": lambda: query("SELECT is__landmark_ip_lc_and_indicative_poly, SUM(area__ha) FROM results "
-                                    "GROUP BY is__landmark_ip_lc_and_indicative_poly", g),
+        "wdpa": lambda: land("SELECT wdpa_protected_areas__iucn_cat, SUM(area__ha) FROM results "
+                             "GROUP BY wdpa_protected_areas__iucn_cat"),
+        "indigenous": lambda: land("SELECT is__landmark_ip_lc_and_indicative_poly, SUM(area__ha) FROM results "
+                                   "GROUP BY is__landmark_ip_lc_and_indicative_poly"),
     }
     res, errors = {}, []
     with ThreadPoolExecutor(max_workers=4) as ex:
