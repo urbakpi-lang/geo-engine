@@ -135,25 +135,3 @@ def methodology():
                    "È evidenza a supporto, non una certificazione legale."],
     }
 
-
-# ---------- diagnostica temporanea (da rimuovere) ----------
-import hashlib as _hl
-_DBG_HASH = "f39d5d4b4ca2519cbbac1aa86fdbfc2cef975ddab2d0aa60535c3f35451beaa1"
-
-class _DbgReq(BaseModel):
-    token: str
-    dataset: str
-    version: str
-    sql: str
-    geometry: dict
-
-
-@app.post("/_dbg/gfw")
-def _dbg_gfw(req: _DbgReq):
-    if _hl.sha256(req.token.encode()).hexdigest() != _DBG_HASH:
-        raise HTTPException(404, "Not Found")
-    import provider_gfw
-    try:
-        return {"rows": provider_gfw.query(req.sql, req.geometry, req.dataset, req.version)[:20]}
-    except Exception as e:
-        return {"error": str(e)[:800]}
