@@ -25,6 +25,12 @@ ALLOW_ORIGINS = os.getenv("ALLOW_ORIGINS", "*").split(",")
 app = FastAPI(title="geo-engine")
 app.add_middleware(CORSMiddleware, allow_origins=ALLOW_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
+# ---- GroveProof: account, registro, report, pagina pubblica (vedi app_api.py) ----
+import db as _db
+import app_api
+_db.init_db()
+app.include_router(app_api.router)
+
 class AnalyzeReq(BaseModel):
     recipe: str
     geometry: dict
@@ -63,8 +69,7 @@ class LeadReq(BaseModel):
 def lead(req: LeadReq):
     """Contatti dal modulo dei siti. Per ora finiscono nei Logs di Render (cerca '[lead]').
     Il disco del piano free non è persistente: per conservarli serve un foglio/DB esterno."""
-    print("[lead] %s | %s" % (req.email, req.company or ""), flush=True)
-    return {"ok": True}
+    return app_api.save_lead(req.email, req.company or "", "groveproof-form")
 
 @app.post("/analyze")
 def analyze_ep(req: AnalyzeReq):

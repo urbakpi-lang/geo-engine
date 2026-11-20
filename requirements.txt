@@ -4,3 +4,7 @@ pydantic>=2.6
 requests>=2.31
 sentinelhub>=3.10
 shapely>=2.0
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
+fpdf2>=2.7
+segno>=1.6
