@@ -429,6 +429,10 @@ def _pdf_doc(title, subtitle):
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(True, 15)
     pdf.add_page()
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_text_color(46, 125, 82)
+    pdf.cell(0, 5, _pdf_text("GroveProof - EUDR deforestation check for coffee"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "B", 15)
     pdf.cell(0, 9, _pdf_text(title), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
@@ -654,15 +658,16 @@ def badge(slug: str, lang: str = "en", s: Session = Depends(db.get_db)):
                 "it": "%d di %d particelle verificate"}[lang] % (len(ok), len(pl))
         color = "#8A6A1F"
     date = (_iso(last) or "")[:10]
-    svg = ("<svg xmlns='http://www.w3.org/2000/svg' width='260' height='64' viewBox='0 0 260 64' role='img' "
-           "aria-label='{h}: {l}'><rect x='0.5' y='0.5' width='259' height='63' rx='10' fill='#FBF8F2' "
+    tag = {"en": "EUDR check for coffee", "de": "EUDR-Nachweis für Kaffee", "it": "verifica EUDR per il caffè"}[lang]
+    svg = ("<svg xmlns='http://www.w3.org/2000/svg' width='320' height='64' viewBox='0 0 320 64' role='img' "
+           "aria-label='{h}: {l}'><rect x='0.5' y='0.5' width='319' height='63' rx='10' fill='#FBF8F2' "
            "stroke='{c}'/><circle cx='30' cy='32' r='15' fill='{c}'/><path d='M23 32l5 5 10-11' stroke='#fff' "
            "stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/><text x='54' y='22' "
            "font-family='Arial,Helvetica,sans-serif' font-size='10' font-weight='700' fill='{c}' "
            "letter-spacing='.8'>{h}</text><text x='54' y='39' font-family='Arial,Helvetica,sans-serif' "
            "font-size='12.5' font-weight='700' fill='#1E1912'>{l}</text><text x='54' y='54' "
-           "font-family='Arial,Helvetica,sans-serif' font-size='9.5' fill='#6B6155'>GroveProof · {d}</text></svg>"
-           ).format(h=_esc(head), l=_esc(line), c=color, d=_esc(date))
+           "font-family='Arial,Helvetica,sans-serif' font-size='9.5' fill='#6B6155'><tspan font-weight='700'>GroveProof</tspan> · {t}{d}</text></svg>"
+           ).format(h=_esc(head), l=_esc(line), c=color, d=_esc(" · " + date if date else ""), t=_esc(tag))
     return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
 
 

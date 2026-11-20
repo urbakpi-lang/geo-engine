@@ -83,6 +83,10 @@ def read_session(token: str) -> str | None:
 
 
 # ---------------- email ----------------
+# Il nome non va mai da solo: sempre con la frase che spiega cosa fa.
+TAGLINE = {"en": "GroveProof — EUDR deforestation check for coffee",
+           "de": "GroveProof — Entwaldungsfrei-Nachweis für Kaffee",
+           "it": "GroveProof — verifica EUDR per il caffè"}
 TEXTS = {
     "en": ("Your GroveProof sign-in link", "Click to sign in to GroveProof (valid for 30 minutes):",
            "If you did not ask for this, ignore this email."),
@@ -137,9 +141,11 @@ def request_login(s: Session, email: str, lang: str = "en", ip: str = "") -> dic
     s.commit()
     link = "%s#token=%s" % (APP_URL, raw)
     subj, line, foot = TEXTS.get(lang, TEXTS["en"])
-    sent = send_email(email, subj, "%s\n\n%s\n\n%s" % (line, link, foot),
+    tag = TAGLINE.get(lang, TAGLINE["en"])
+    sent = send_email(email, subj, "%s\n\n%s\n\n%s\n\n--\n%s" % (line, link, foot, tag),
                       "<p>%s</p><p><a href=\"%s\">%s</a></p><p style=\"color:#777\">%s</p>"
-                      % (line, link, subj, foot))
+                      "<p style=\"color:#2E7D52;font-size:12px\">%s</p>"
+                      % (line, link, subj, foot, tag))
     out = {"ok": True, "sent": sent}
     if DEV_LINKS:
         out["dev_link"] = link
