@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>For importers and exporters — GroveProof · EUDR check for coffee</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Give your roaster customers the EUDR data they ask for: DDS numbers, verified plots and a shared origin page.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/gp.css">
+<script src="assets/gp.js"></script>
+</head>
+<body>
+<nav class="top" id="gpnav"></nav>
+<main class="wrap" style="padding-top:2.2rem">
+  <h1 data-t="h">Your roaster customers will ask you for EUDR data. Answer once.</h1>
+  <p class="muted" style="max-width:720px" data-t="p">Every roastery needs the DDS reference number and proof that the farms are deforestation-free. Instead of answering hundreds of emails, publish one verified origin profile and share it with all your customers.</p>
+  <div class="grid g3" style="margin-top:1.4rem" id="feat"></div>
+  <div class="card" style="margin-top:1.4rem">
+    <h3 data-t="how_h">How it works</h3>
+    <ol id="how" class="muted"></ol>
+  </div>
+  <div class="card" id="form">
+    <h3 data-t="form_h">Request access for importers and exporters</h3>
+    <p class="muted" data-t="form_p">We are opening the origin profiles to a first group of importers, exporters and cooperatives. Leave your details and we will contact you.</p>
+    <form id="lf" autocomplete="on">
+      <div class="grid g2" style="gap:0 .8rem">
+        <div><label class="f">Email</label><input class="i" name="email" type="email" required></div>
+        <div><label class="f" data-t="company">Company</label><input class="i" name="company" required></div>
+        <div><label class="f" data-t="role">You are</label><select class="i" name="kind"><option value="importer" data-t="r_imp">Importer / trader in the EU</option><option value="exporter" data-t="r_exp">Exporter in the producing country</option><option value="cooperative" data-t="r_coop">Cooperative / producer group</option></select></div>
+        <div><label class="f" data-t="volume">Roaster customers (approx.)</label><input class="i" name="volume" type="number" min="0"></div>
+      </div>
+      <label class="f" data-t="msg">Origins and anything else we should know</label><textarea class="i" name="message" rows="3"></textarea>
+      <div class="row" style="margin-top:.8rem"><button class="btn" data-t="send">Send</button><span class="faint" data-th="consent">We use your data only to reply. <a href="privacy.html">Privacy</a></span></div>
+    </form>
+    <div id="lmsg"></div>
+  </div>
+</main>
+<footer class="ft" id="gpfoot"></footer>
+<script>
+GP.strings = {
+  en:{h:"Your roaster customers will ask you for EUDR data. Answer once.",p:"Every roastery needs the DDS reference number and proof that the farms are deforestation-free. Instead of answering hundreds of emails, publish one verified origin profile and share it with all your customers.",
+    feat:[["One profile, all customers","Plots, satellite results and DDS numbers per lot in one page your customers can open or download."],["Independent satellite check","Every plot screened against forest cover 2020, tree cover loss after 2020 and protected areas."],["Seen by roasters","Roasters using GroveProof find suppliers with verified origins in the directory."]],
+    how_h:"How it works",how:["Upload your plots (GeoJSON, KML or CSV) and run the check.","Record the DDS reference number for each shipment.","Share the profile link or invite your customers: they see the data in their own register."],
+    form_h:"Request access for importers and exporters",form_p:"We are opening the origin profiles to a first group of importers, exporters and cooperatives. Leave your details and we will contact you.",
+    company:"Company",role:"You are",r_imp:"Importer / trader in the EU",r_exp:"Exporter in the producing country",r_coop:"Cooperative / producer group",volume:"Roaster customers (approx.)",msg:"Origins and anything else we should know",send:"Send",
+    consent:'We use your data only to reply. <a href="privacy.html">Privacy</a>',thanks:"Thank you, we will contact you shortly."},
+  de:{h:"Ihre Röster-Kunden werden Sie nach EUDR-Daten fragen. Antworten Sie einmal.",p:"Jede Rösterei braucht die DDS-Referenznummer und den Nachweis entwaldungsfreier Farmen. Statt hunderte E-Mails zu beantworten, veröffentlichen Sie ein geprüftes Herkunftsprofil und teilen es mit allen Kunden.",
+    feat:[["Ein Profil, alle Kunden","Flurstücke, Satellitenergebnisse und DDS-Nummern pro Charge auf einer Seite, die Ihre Kunden öffnen oder herunterladen können."],["Unabhängige Satellitenprüfung","Jedes Flurstück wird gegen Waldbedeckung 2020, Baumverlust nach 2020 und Schutzgebiete geprüft."],["Sichtbar für Röster","Röster, die GroveProof nutzen, finden Lieferanten mit geprüfter Herkunft im Verzeichnis."]],
+    how_h:"So funktioniert es",how:["Flurstücke hochladen (GeoJSON, KML oder CSV) und Prüfung starten.","Für jede Lieferung die DDS-Referenznummer erfassen.","Profil-Link teilen oder Kunden einladen: Sie sehen die Daten in ihrem eigenen Register."],
+    form_h:"Zugang für Importeure und Exporteure anfragen",form_p:"Wir öffnen die Herkunftsprofile für eine erste Gruppe von Importeuren, Exporteuren und Kooperativen. Hinterlassen Sie Ihre Daten, wir melden uns.",
+    company:"Firma",role:"Sie sind",r_imp:"Importeur / Händler in der EU",r_exp:"Exporteur im Erzeugerland",r_coop:"Kooperative / Erzeugergemeinschaft",volume:"Röster-Kunden (ca.)",msg:"Herkünfte und weitere Hinweise",send:"Senden",
+    consent:'Wir nutzen Ihre Daten nur für die Antwort. <a href="privacy.html">Datenschutz</a>',thanks:"Danke, wir melden uns in Kürze."},
+  it:{h:"Le torrefazioni clienti ti chiederanno i dati EUDR. Rispondi una volta sola.",p:"Ogni torrefazione ha bisogno del numero di riferimento DDS e della prova che le aziende agricole sono senza deforestazione. Invece di rispondere a centinaia di email, pubblica un profilo d'origine verificato e condividilo con tutti i clienti.",
+    feat:[["Un profilo, tutti i clienti","Particelle, esiti satellitari e numeri DDS per lotto in una sola pagina che i clienti possono aprire o scaricare."],["Verifica satellitare indipendente","Ogni particella è confrontata con la copertura forestale 2020, la perdita di copertura arborea dopo il 2020 e le aree protette."],["Visibile alle torrefazioni","Le torrefazioni che usano GroveProof trovano nell'elenco i fornitori con origini verificate."]],
+    how_h:"Come funziona",how:["Carica le particelle (GeoJSON, KML o CSV) e avvia la verifica.","Registra il numero di riferimento DDS per ogni spedizione.","Condividi il link del profilo o invita i clienti: vedono i dati nel loro registro."],
+    form_h:"Richiedi l'accesso per importatori ed esportatori",form_p:"Stiamo aprendo i profili d'origine a un primo gruppo di importatori, esportatori e cooperative. Lascia i tuoi dati e ti contattiamo.",
+    company:"Azienda",role:"Sei",r_imp:"Importatore / trader nell'UE",r_exp:"Esportatore nel paese di produzione",r_coop:"Cooperativa / gruppo di produttori",volume:"Torrefazioni clienti (circa)",msg:"Origini e altro che dovremmo sapere",send:"Invia",
+    consent:'Usiamo i tuoi dati solo per risponderti. <a href="privacy.html">Privacy</a>',thanks:"Grazie, ti contattiamo a breve."}
+};
+(function(){
+  var esc=GP.esc, t=GP.t;
+  function render(){ GP.applyI18n();
+    document.getElementById("feat").innerHTML=t("feat").map(function(f){ return '<div class="card"><h3>'+esc(f[0])+'</h3><p class="muted">'+esc(f[1])+'</p></div>'; }).join("");
+    document.getElementById("how").innerHTML=t("how").map(function(x){ return '<li>'+esc(x)+'</li>'; }).join(""); }
+  document.getElementById("lf").onsubmit=async function(e){ e.preventDefault(); var f=this, m=document.getElementById("lmsg");
+    var msg=(f.elements.volume.value?"Roaster customers: "+f.elements.volume.value+"\n":"")+f.elements.message.value;
+    try{ await GP.api("/leads",{method:"POST",body:{email:f.elements.email.value,company:f.elements.company.value,kind:f.elements.kind.value,source:"importers",message:msg}}); m.innerHTML='<div class="notice ok">'+esc(t("thanks"))+'</div>'; f.reset(); }
+    catch(err){ m.innerHTML='<div class="notice err">'+esc(err.message)+'</div>'; } };
+  GP.onLang=function(){ GP.nav(); render(); };
+  GP.nav(); render();
+})();
+</script>
+</body>
+</html>

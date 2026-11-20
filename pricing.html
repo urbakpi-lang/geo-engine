@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pricing — GroveProof · EUDR check for coffee</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="GroveProof plans for coffee roasters: free EUDR satellite check, Pro monitoring and register, Business API for importers.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/gp.css">
+<script src="assets/gp.js"></script>
+<style>.billing{display:inline-flex;border:1px solid var(--line-strong);border-radius:99px;overflow:hidden;margin:1rem 0}.billing button{border:none;background:var(--surface);padding:.45rem .9rem;cursor:pointer;font:600 .8rem "Libre Franklin",sans-serif;color:var(--ink-soft)}.billing button.on{background:var(--ink);color:var(--ground)}
+.faq dt{font-weight:600;margin-top:1rem}.faq dd{margin:.25rem 0 0;color:var(--ink-soft)}</style>
+</head>
+<body>
+<nav class="top" id="gpnav"></nav>
+<main class="wrap" style="padding-top:2rem">
+  <h1 data-t="h">Simple plans for every roastery</h1>
+  <p class="muted" style="max-width:680px" data-t="p">The satellite check stays free. Pay only when you want monitoring, more plots or the tools to show your customers.</p>
+  <div class="billing"><button data-b="m" class="on" data-t="monthly">Monthly</button><button data-b="y" data-t="yearly">Yearly (2 months free)</button></div>
+  <div class="grid g3" id="plans"></div>
+
+  <div class="card" style="margin-top:1.4rem">
+    <h3 data-t="extra_h">Extras</h3>
+    <div class="scroll"><table class="t" id="extras"></table></div>
+  </div>
+
+  <div class="card">
+    <h3 data-t="faq_h">Questions</h3>
+    <dl class="faq" id="faq"></dl>
+  </div>
+  <div id="contact" class="card">
+    <h3 data-t="contact_h">Talk to us</h3>
+    <p class="muted" data-t="contact_p">For Business, origin profiles or sponsoring, leave your email and we reply within one working day.</p>
+    <form id="lf" class="row" autocomplete="on">
+      <input class="i" style="flex:1;min-width:200px" name="email" type="email" required placeholder="you@company.com">
+      <input class="i" style="flex:1;min-width:160px" name="company" data-tp="company" placeholder="Company">
+      <select class="i" name="kind" style="width:auto"><option value="business" data-t="o_business">Business plan</option><option value="origin" data-t="o_origin">Origin profile</option><option value="sponsor" data-t="o_sponsor">Sponsoring</option><option value="other" data-t="o_other">Other</option></select>
+      <button class="btn" data-t="send">Send</button>
+    </form>
+    <div id="lmsg"></div>
+  </div>
+</main>
+<footer class="ft" id="gpfoot"></footer>
+<script>
+GP.strings = {
+  en:{h:"Simple plans for every roastery",p:"The satellite check stays free. Pay only when you want monitoring, more plots or the tools to show your customers.",monthly:"Monthly",yearly:"Yearly (2 months free)",
+    per_m:"/ month",per_y:"/ year",vat:"excl. VAT",start:"Start free",choose:"Choose Pro",talk:"Contact us",popular:"Most chosen",from:"from ",
+    free_d:"For small roasteries getting ready for EUDR.",pro_d:"For roasteries buying from several origins.",bus_d:"For importers, traders and roasting groups.",
+    f_free:["Unlimited one-off checks on the free tool","Account with up to 25 plots","Register of lots and DDS numbers","Excel/CSV and PDF export","Public origins page and standard badge"],
+    f_pro:["Up to 500 plots","Automatic monthly re-check with email alerts","Custom badge and QR for bags","Shareable reports for customers and auditors","3 users, no ads","Email support"],
+    f_bus:["Up to 5,000 plots and more on request","Weekly monitoring","API and bulk import","10 users, supplier portal","Priority support and onboarding"],
+    extra_h:"Extras",ex:[["Origin profile for cooperatives and exporters","€300–600 / year","Verified page shared with all your roaster customers"],["Sponsored listing in the importer directory","on request","Visible to roasters who look for compliant suppliers"],["Satellite review of an at-risk plot by an analyst","€49 / plot","Written opinion for your due diligence file"]],
+    faq_h:"Questions",faq:[["Is the free check really free?","Yes. It is supported by sponsors and by the paid plans. We do not sell your data."],["Do I need GroveProof to comply with EUDR?","No tool makes you compliant by itself. Downstream SMEs mainly need to keep records and the DDS reference numbers for 5 years; GroveProof makes this easy and adds an independent satellite check of the origins."],["When do the rules apply?","For large and medium operators from 30 December 2026; for micro and small companies from 30 June 2027."],["Can I cancel?","Yes, at any time. Your data stays exportable."]],
+    contact_h:"Talk to us",contact_p:"For Business, origin profiles or sponsoring, leave your email and we reply within one working day.",company:"Company",o_business:"Business plan",o_origin:"Origin profile",o_sponsor:"Sponsoring",o_other:"Other",send:"Send",thanks:"Thank you, we will be in touch."},
+  de:{h:"Einfache Tarife für jede Rösterei",p:"Der Satelliten-Check bleibt kostenlos. Sie zahlen nur für Überwachung, mehr Flurstücke oder Werkzeuge für Ihre Kunden.",monthly:"Monatlich",yearly:"Jährlich (2 Monate gratis)",
+    per_m:"/ Monat",per_y:"/ Jahr",vat:"zzgl. MwSt.",start:"Kostenlos starten",choose:"Pro wählen",talk:"Kontakt",popular:"Am häufigsten gewählt",from:"ab ",
+    free_d:"Für kleine Röstereien, die sich auf die EUDR vorbereiten.",pro_d:"Für Röstereien mit mehreren Herkünften.",bus_d:"Für Importeure, Händler und Röstgruppen.",
+    f_free:["Unbegrenzte Einzelprüfungen im Gratis-Tool","Konto mit bis zu 25 Flurstücken","Register der Chargen und DDS-Nummern","Export als Excel/CSV und PDF","Öffentliche Herkunftsseite und Standardsiegel"],
+    f_pro:["Bis zu 500 Flurstücke","Automatische monatliche Prüfung mit E-Mail-Warnungen","Eigenes Siegel und QR-Code für Tüten","Teilbare Berichte für Kunden und Prüfer","3 Nutzer, keine Werbung","E-Mail-Support"],
+    f_bus:["Bis zu 5.000 Flurstücke, mehr auf Anfrage","Wöchentliche Überwachung","API und Massenimport","10 Nutzer, Lieferantenportal","Bevorzugter Support und Einführung"],
+    extra_h:"Zusatzleistungen",ex:[["Herkunftsprofil für Kooperativen und Exporteure","300–600 € / Jahr","Geprüfte Seite, geteilt mit allen Ihren Röster-Kunden"],["Gesponserter Eintrag im Importeursverzeichnis","auf Anfrage","Sichtbar für Röster, die konforme Lieferanten suchen"],["Satellitenprüfung eines Risiko-Flurstücks durch einen Analysten","49 € / Flurstück","Schriftliche Einschätzung für Ihre Sorgfaltsakte"]],
+    faq_h:"Fragen",faq:[["Ist der Gratis-Check wirklich kostenlos?","Ja. Er wird von Sponsoren und den bezahlten Tarifen getragen. Wir verkaufen Ihre Daten nicht."],["Brauche ich GroveProof für die EUDR?","Kein Werkzeug macht Sie allein konform. Nachgelagerte KMU müssen vor allem Aufzeichnungen und DDS-Referenznummern 5 Jahre aufbewahren; GroveProof macht das einfach und ergänzt eine unabhängige Satellitenprüfung der Herkünfte."],["Ab wann gelten die Regeln?","Für große und mittlere Marktteilnehmer ab 30. Dezember 2026; für Kleinst- und Kleinunternehmen ab 30. Juni 2027."],["Kann ich kündigen?","Ja, jederzeit. Ihre Daten bleiben exportierbar."]],
+    contact_h:"Sprechen Sie mit uns",contact_p:"Für Business, Herkunftsprofile oder Sponsoring hinterlassen Sie Ihre E-Mail, wir antworten innerhalb eines Werktags.",company:"Firma",o_business:"Business-Tarif",o_origin:"Herkunftsprofil",o_sponsor:"Sponsoring",o_other:"Sonstiges",send:"Senden",thanks:"Danke, wir melden uns."},
+  it:{h:"Piani semplici per ogni torrefazione",p:"La verifica satellitare resta gratuita. Paghi solo se vuoi il monitoraggio, più particelle o gli strumenti da mostrare ai clienti.",monthly:"Mensile",yearly:"Annuale (2 mesi gratis)",
+    per_m:"/ mese",per_y:"/ anno",vat:"IVA esclusa",start:"Inizia gratis",choose:"Scegli Pro",talk:"Contattaci",popular:"Il più scelto",from:"da ",
+    free_d:"Per le piccole torrefazioni che si preparano all'EUDR.",pro_d:"Per le torrefazioni che comprano da più origini.",bus_d:"Per importatori, trader e gruppi di torrefazione.",
+    f_free:["Verifiche singole illimitate nello strumento gratuito","Account con fino a 25 particelle","Registro dei lotti e dei numeri DDS","Export Excel/CSV e PDF","Pagina pubblica delle origini e badge standard"],
+    f_pro:["Fino a 500 particelle","Riverifica automatica mensile con avvisi via email","Badge personalizzato e QR per le confezioni","Report condivisibili per clienti e auditor","3 utenti, niente pubblicità","Assistenza via email"],
+    f_bus:["Fino a 5.000 particelle e oltre su richiesta","Monitoraggio settimanale","API e importazione massiva","10 utenti, portale fornitori","Assistenza prioritaria e avviamento"],
+    extra_h:"Servizi aggiuntivi",ex:[["Profilo d'origine per cooperative ed esportatori","300–600 € / anno","Pagina verificata condivisa con tutte le torrefazioni clienti"],["Inserimento sponsorizzato nell'elenco importatori","su richiesta","Visibile alle torrefazioni che cercano fornitori conformi"],["Revisione satellitare di una particella a rischio da parte di un analista","49 € / particella","Parere scritto per il fascicolo di due diligence"]],
+    faq_h:"Domande",faq:[["La verifica gratuita è davvero gratis?","Sì. È sostenuta dagli sponsor e dai piani a pagamento. Non vendiamo i tuoi dati."],["Mi serve GroveProof per essere conforme all'EUDR?","Nessuno strumento rende conformi da solo. Le PMI a valle devono soprattutto conservare per 5 anni i dati e i numeri di riferimento DDS; GroveProof lo rende semplice e aggiunge una verifica satellitare indipendente delle origini."],["Da quando valgono le regole?","Per gli operatori grandi e medi dal 30 dicembre 2026; per micro e piccole imprese dal 30 giugno 2027."],["Posso disdire?","Sì, in qualsiasi momento. I tuoi dati restano esportabili."]],
+    contact_h:"Parliamone",contact_p:"Per Business, profili d'origine o sponsorizzazioni lascia la tua email: rispondiamo entro un giorno lavorativo.",company:"Azienda",o_business:"Piano Business",o_origin:"Profilo d'origine",o_sponsor:"Sponsorizzazione",o_other:"Altro",send:"Invia",thanks:"Grazie, ti ricontattiamo."}
+};
+(function(){
+  var esc=GP.esc, t=GP.t, billing="m";
+  function li(a){ return '<ul>'+a.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul>'; }
+  function price(m,y){ return billing==="m" ? '€'+m+' <span class="faint">'+esc(t("per_m"))+'</span>' : '€'+y+' <span class="faint">'+esc(t("per_y"))+'</span>'; }
+  function render(){
+    GP.applyI18n();
+    document.querySelectorAll(".billing button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-b")===billing); });
+    document.getElementById("plans").innerHTML =
+      '<div class="card price"><h2>Free</h2><p class="muted">'+esc(t("free_d"))+'</p><div class="p">€0</div>'+li(t("f_free"))+'<a class="btn ghost" href="app.html">'+esc(t("start"))+'</a></div>'+
+      '<div class="card price hl"><span class="chip ok" style="align-self:flex-start">'+esc(t("popular"))+'</span><h2>Pro</h2><p class="muted">'+esc(t("pro_d"))+'</p><div class="p">'+price(39,390)+'</div><div class="faint">'+esc(t("vat"))+'</div>'+li(t("f_pro"))+'<a class="btn" href="app.html?plan=pro">'+esc(t("choose"))+'</a></div>'+
+      '<div class="card price"><h2>Business</h2><p class="muted">'+esc(t("bus_d"))+'</p><div class="p">'+esc(t("from"))+price(199,1990)+'</div><div class="faint">'+esc(t("vat"))+'</div>'+li(t("f_bus"))+'<a class="btn ghost" href="#contact">'+esc(t("talk"))+'</a></div>';
+    document.getElementById("extras").innerHTML = t("ex").map(function(r){ return '<tr><td><b>'+esc(r[0])+'</b><div class="faint">'+esc(r[2])+'</div></td><td class="mono" style="white-space:nowrap">'+esc(r[1])+'</td></tr>'; }).join("");
+    document.getElementById("faq").innerHTML = t("faq").map(function(q){ return '<dt>'+esc(q[0])+'</dt><dd>'+esc(q[1])+'</dd>'; }).join("");
+  }
+  document.querySelectorAll(".billing button").forEach(function(b){ b.onclick=function(){ billing=b.getAttribute("data-b"); render(); }; });
+  document.getElementById("lf").onsubmit=async function(e){ e.preventDefault(); var f=this, m=document.getElementById("lmsg");
+    try{ await GP.api("/leads",{method:"POST",body:{email:f.elements.email.value,company:f.elements.company.value,kind:f.elements.kind.value,source:"pricing"}}); m.innerHTML='<div class="notice ok">'+esc(t("thanks"))+'</div>'; f.reset(); }
+    catch(err){ m.innerHTML='<div class="notice err">'+esc(err.message)+'</div>'; } };
+  GP.onLang=function(){ GP.nav(); render(); };
+  GP.nav(); render();
+})();
+</script>
+</body>
+</html>
