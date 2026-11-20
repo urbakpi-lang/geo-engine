@@ -1,0 +1,26 @@
+# Riverifica giornaliera delle particelle dei piani Pro e Business (solo quelle scadute:
+# Pro ogni 30 giorni, Business ogni 7) e avvisi email se un esito cambia.
+# Serve il secret del repository GROVEPROOF_ADMIN_TOKEN = stesso valore di ADMIN_TOKEN su Render.
+name: GroveProof monitor
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Riverifica le particelle scadute
+        env:
+          API: https://geo-engine-6rcq.onrender.com
+          TOKEN: ${{ secrets.GROVEPROOF_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "GROVEPROOF_ADMIN_TOKEN non impostato: salto"; exit 0; fi
+          for i in 1 2 3 4 5 6; do curl -fsS --max-time 60 "$API/health" && break; sleep 20; done
+          for i in $(seq 1 20); do
+            R=$(curl -fsS -X POST "$API/admin/monitor" -H "X-Admin-Token: $TOKEN" --max-time 900) || exit 1
+            echo "$R"
+            P=$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin)["pending"])')
+            [ "$P" = "0" ] && break
+          done
